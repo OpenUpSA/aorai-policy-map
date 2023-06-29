@@ -31,7 +31,7 @@ import { filter, geoConicEquidistantRaw } from 'd3';
 
 function Map() {
     const api = {
-        base_url: 'https://nocodb.openup.org.za/api/v1/db/data/v1/AORAI'
+        base_url: 'https://nocodb.openup.org.za/api/v1/db/data/v1/AORAI2'
     }
     const [loading, setLoading] = useState(true);
     const [loadingText, setLoadingText] = useState('Loading...');
@@ -45,11 +45,15 @@ function Map() {
     const [policies, setPolicies] = useState([]);
     const [refreshMap, setRefreshMap] = useState(1);
     const [showSection, setShowSection] = useState('map');
+    const [regions, setRegions] = useState([]);
+    const [selectedRegion, setSelectedRegion] = useState('');
 
     useEffect(() => {
 
         getPolicies();
         getPolicyAreas();
+        getRegions();
+        
         
     }, []);
 
@@ -81,6 +85,8 @@ function Map() {
             where = dateWhere + '~and(Country,isnot,null)~and' + countryWhere + policyAreaWhere;
         }
 
+        where = where + '~and(Analysis status,eq,Publish to website)';
+
 
         axios.get(api.base_url + '/Policy and Governance Map', {
             headers: {
@@ -90,8 +96,7 @@ function Map() {
                 limit: 150,
                 fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary',
                 'nested[Country][fields]': 'Country name,Country code',
-                where: where,
-                // where: '(Analysis status,eq,Publish to website)~and(Country,isnot,null)',
+                where: where
             }
         }).then(function(response) {
 
@@ -172,11 +177,51 @@ function Map() {
     
     }
 
+    const getRegions = () => {
+
+        let regions_temp = [];
+
+        axios.get(api.base_url + '/Regional grouping - geo', {
+            headers: {
+                'xc-token': process.env.API_KEY
+            },
+            params: {
+                limit: 250,
+                where: '(Country,isnot,null)'
+            }
+        }).then(function(response) {
+
+            regions_temp = response.data.list;
+
+            axios.get(api.base_url + '/Regional grouping - income', {
+                headers: {
+                    'xc-token': process.env.API_KEY
+                },
+                params: {
+                    limit: 250,
+                    where: '(Country,isnot,null)'
+                }
+            }).then(function(response) {
+                regions_temp = regions_temp.concat(response.data.list);
+
+                setRegions(regions_temp);
+                
+
+            })
+
+        })
+
+        
+
+            
+
+    }
+
     useEffect(() => {
 
         getPolicies();
 
-    }, [selectedPolicyAreas, selectedCountries, selectedYears]);
+    }, [selectedPolicyAreas, selectedCountries, selectedYears, selectedRegion]);
 
 
     const getPolicyCount = (iso_code) => {
@@ -212,6 +257,8 @@ function Map() {
             setSelectedCountries(selectedCountries.filter((item) => item !== country));
         }
 
+        setSelectedRegion('');
+
     }
 
     const selectYear = (e, startEnd) => {
@@ -229,6 +276,28 @@ function Map() {
         }
 
     }
+
+    const selectRegion = (e) => {
+            
+        let region = e.target.value;
+        setSelectedRegion(region);
+
+        let region_countries = [];
+
+        regions.filter(reg => reg['Region name'] == region).forEach(regio => {
+
+            regio.Country.forEach(country => {
+                region_countries.push(country['Country name']);
+            })
+
+
+        })
+
+        setSelectedCountries(region_countries);
+    
+    }
+
+
 
     const transformFilteredData = () => {
 
@@ -295,6 +364,9 @@ function Map() {
 
     }, [filteredData]);
 
+
+    
+
     const updateBarChart = () => {
 
         let activePolicyAreas = [];
@@ -357,7 +429,7 @@ function Map() {
         if (feature) {
 
             if (africanCountries.map(country => country.iso_code).includes(feature.id)) {
-                layer.bindTooltip(`<div class="country-tooltip"><div class="iso-code">${getCountryISO2(feature.id)}</div><div class="policy-count" id="iso-${feature.id}">${getPolicyCount(feature.id)}</div></div>`, { permanent: true, direction: "center" });
+                layer.bindTooltip(`<div class="country-tooltip"><div class="iso-code">${getCountryISO2(feature.id)}</div></div>`, { permanent: true, direction: "center" });
             }
 
             let popupContent = ReactDOMServer.renderToString(
@@ -377,6 +449,13 @@ function Map() {
                             }} 
                         />
                         </div>&nbsp;&nbsp;{feature.properties.name}
+                        {/* <>
+                        {
+                            (selectedCountries.includes(feature.properties.name) || selectedCountries.length == 0) && <div>hey</div>
+                            
+
+                        }
+                        </> */}
                 </>
             );
 
@@ -392,8 +471,6 @@ function Map() {
                 });
                 layer.bringToFront();
                 layer.openPopup();
-                
-
             }
         });
 
@@ -477,7 +554,7 @@ function Map() {
                                                                             <label>{policy_area['Policy area']}</label>
                                                                         </Col>
                                                                         <Col xs="auto">
-                                                                            <input type="checkbox" value={policy_area['Policy area']} onChange={selectPolicyArea} checked={selectedPolicyAreas.includes(policy_area['Policy area'])} />
+                                                                            <input className="filter-form-control" type="checkbox" value={policy_area['Policy area']} onChange={selectPolicyArea} checked={selectedPolicyAreas.includes(policy_area['Policy area'])} />
                                                                         </Col>
                                                                     </Row>
                                                                 )
@@ -515,7 +592,7 @@ function Map() {
                                                                                 </label>
                                                                             </Col>
                                                                             <Col xs="auto">
-                                                                                <input type="checkbox" value={country.properties.name} onChange={selectCountry} />
+                                                                                <input className="filter-form-control" type="checkbox" value={country.properties.name} onChange={selectCountry} checked={selectedCountries.includes(country.properties.name)} />
                                                                             </Col>
                                                                         </Row>
                                                                     )
@@ -526,16 +603,45 @@ function Map() {
                                                 </Accordion.Body>
                                             </Accordion.Item>
                                             <Accordion.Item eventKey="2">
+                                                <Accordion.Header>REGIONS</Accordion.Header>
+                                                <Accordion.Body className="px-2">
+                                                    <div className="scrollarea" style={{ height: '250px' }}>
+                                                        <Row className="mb-2 p-1 list-item-bg">
+                                                            <Col>
+                                                                <label>None</label>
+                                                            </Col>
+                                                            <Col xs="auto">
+                                                                <input className="filter-form-control" type="radio" value='' onChange={selectRegion} checked={selectedRegion == ''} />
+                                                            </Col>
+                                                        </Row>
+                                                        {
+                                                            regions.map((region, index) => {
+                                                                return (
+                                                                    <Row key={index} className="mb-2 p-1 list-item-bg">
+                                                                        <Col>
+                                                                            <label>{region['Region name']}</label>
+                                                                        </Col>
+                                                                        <Col xs="auto">
+                                                                            <input className="filter-form-control" type="radio" value={region['Region name']} onChange={selectRegion} checked={selectedRegion == region['Region name']} />
+                                                                        </Col>
+                                                                    </Row>
+                                                                )
+                                                            })
+                                                        }
+                                                    </div>
+                                                </Accordion.Body>
+                                            </Accordion.Item>
+                                            <Accordion.Item eventKey="3">
                                                 <Accordion.Header>DATE SETTINGS</Accordion.Header>
                                                 <Accordion.Body className="px-2">
                                                     <Row>
                                                         <Col xs="auto" className="d-flex align-items-center fw-bold">Period:</Col>
                                                         <Col className="pe-0">
-                                                            <Form.Select className="bg-control-grey" size="sm" onChange={ e => selectYear(e, 'start')}>
+                                                            <Form.Select value={selectedYears[0]} className="bg-control-grey" size="sm" onChange={ e => selectYear(e, 'start')}>
                                                             {
                                                                 Array.from({ length: 2023 - 1960 + 1 }, (_, i) => i + 1960).map((year) => {
                                                                     return (
-                                                                        <option key={year} value={year} selected={year == selectedYears[0] ? 'selected' : ''}>{year}</option>
+                                                                        <option key={year} value={year}>{year}</option>
                                                                     )
                                                                 })
 
@@ -546,11 +652,11 @@ function Map() {
                                                             TO
                                                         </Col>
                                                         <Col className="ps-0">
-                                                            <Form.Select className="bg-control-grey" size="sm" onChange={ e => selectYear(e, 'end')}>
+                                                            <Form.Select value={selectedYears[1]} className="bg-control-grey" size="sm" onChange={ e => selectYear(e, 'end')}>
                                                             {
                                                                 Array.from({ length: 2023 - 1960 + 1 }, (_, i) => i + 1960).map((year) => {
                                                                     return (
-                                                                        <option key={year} value={year} selected={year == selectedYears[1] ? 'selected' : ''}>{year}</option>
+                                                                        <option key={year} value={year}>{year}</option>
                                                                     )
                                                                 })
 
@@ -775,7 +881,12 @@ function Map() {
                                                             <Col xs="auto">{selectedPolicyAreas.length ? selectedPolicyAreas.length : 'All'}</Col>
                                                         </Row>
                                                         <Row className="p-1 mt-2 list-item-bg">
-                                                            <Col>
+                                                            <Col>Region</Col>
+                                                            <Col xs="auto">{selectedRegion}</Col>
+                                                        </Row>
+                                                        <Row className="p-1 mt-2 list-item-bg">
+                                                            <Col>Countries</Col>
+                                                            <Col xs="auto">
                                                                 {
                                                                     selectedCountries.length > 0 ?
                                                                     <OverlayTrigger placement="left" overlay={
@@ -788,17 +899,17 @@ function Map() {
                                                                             </Popover.Body>
                                                                         </Popover>
                                                                     }>
-                                                                        <span>Countries</span>
+                                                                        <span>{selectedCountries.length}</span>
                                                                     </OverlayTrigger>
-                                                                    : 'Countries'
+                                                                    : 'All'
                                                                 }
                                                             </Col>
-                                                            <Col xs="auto">{selectedCountries.length ? selectedCountries.length : 'All'}</Col>
                                                         </Row>
                                                         <Row className="p-1 mt-2 list-item-bg">
                                                             <Col>Period</Col>
                                                             <Col xs="auto">{selectedYears[0]} - {selectedYears[1]}</Col>
                                                         </Row>
+
                                                         
                                                     
                                                     </Container>
