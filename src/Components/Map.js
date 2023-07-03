@@ -41,6 +41,7 @@ function Map() {
     const [selectedCountries, setSelectedCountries] = useState([]);
     const [selectedYears, setSelectedYears] = useState([1960,2023]);
     const [activePolicyAreas, setActivePolicyAreas] = useState([]);
+    const [activeYears, setActiveYears] = useState([]);
     const [filteredData, setFilteredData] = useState([]);
     const [policies, setPolicies] = useState([]);
     const [refreshMap, setRefreshMap] = useState(1);
@@ -399,6 +400,29 @@ function Map() {
         } else {
             setActivePolicyAreas([]);
         }
+
+
+        let activeYears = [];
+
+        Object.keys(filteredData).forEach((key)=>{
+            filteredData[key].forEach((policy)=>{
+                policy.Year.forEach((year)=>{
+                    if(activeYears.find(yr => yr.year == year.Year) == undefined) {
+                        activeYears.push({
+                            year: year.Year.toString(),
+                            count: 1
+                        });
+                    } else {
+                        activeYears.find(yr => yr.year == year.Year).count++;
+                    }
+                });
+            });
+        });
+
+        // sort ativeYears by year
+        activeYears.sort((a,b) => (a.year > b.year) ? 1 : ((b.year > a.year) ? -1 : 0));
+
+        setActiveYears(activeYears);
 
     }
 
@@ -840,7 +864,7 @@ function Map() {
                         </Col>
                         <Col md={3} className="pe-auto">
 
-                            {/* SETTINGS */}
+                            {/* DETAILS */}
                             <Animate start={{ opacity: 0, filter: 'blur(10px)' }} end={{ opacity: 1, filter: 'blur(0)' }} sequenceIndex={3}>
                                 <Card className="shadow-sm border-0 rounded data-card">
                                     <Card.Header>
@@ -920,16 +944,21 @@ function Map() {
                                                 <Accordion.Body className="px-2">
                                                     {
                                                         activePolicyAreas.length > 0 ?
-                                                        <BarChart data={activePolicyAreas} chartid={'all'}/>
+                                                        <BarChart data={activePolicyAreas} chartid={'all'} field="policy_area" />
                                                         : <div className="p-1 text-center no-policies fw-bold">No Policy Areas Selected</div>
                                                     }
                                                 </Accordion.Body>
                                             </Accordion.Item>
-                                            {/* <Accordion.Item eventKey="2">
+                                            <Accordion.Item eventKey="2">
                                                 <Accordion.Header>PUBLISHING TIMELINE</Accordion.Header>
-                                                <Accordion.Body className="px-0">
+                                                <Accordion.Body className="px-2">
+                                                    {
+                                                        activePolicyAreas.length > 0 ?
+                                                        <BarChart data={activeYears} chartid={'years'} field="year" />
+                                                        : <div className="p-1 text-center no-policies fw-bold">No Years Selected</div>
+                                                    }
                                                 </Accordion.Body>
-                                            </Accordion.Item> */}
+                                            </Accordion.Item>
                                         </Accordion>
                                     </Card.Body>
                                 </Card>

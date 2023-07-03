@@ -62,7 +62,7 @@ const BarChart = (props) => {
       .attr("dy", ".35em")
       .attr("fill", "#ccc")
       .text(function (d) {
-        return d.policy_area.substring(0, 15) + "...";
+        return d[props.field].substring(0, 15) + "...";
       });
 
     bar
