@@ -366,6 +366,16 @@ function Map() {
     }, [filteredData]);
 
 
+    const getMax = (type) => {
+
+        if(type == 'policyAreas') {
+            return Math.max.apply(Math, activePolicyAreas.map(function(o) { return o.count; }))
+        } else {
+            return Math.max.apply(Math, activeYears.map(function(o) { return o.count; }))
+        }
+
+
+    }
     
 
     const updateBarChart = () => {
@@ -426,6 +436,30 @@ function Map() {
 
     }
 
+    const setPopupContent = (layer) => {
+        let html = ReactDOMServer.renderToString(<><div style={{width: '1.4em', height: '1.4em', borderRadius: '50%', overflow: 'hidden', position: 'relative', display: 'inline-block', top: '5px', backgroundColor: '#ccc'}} className="border">
+            <ReactCountryFlag 
+                countryCode={getCountryISO2(layer.feature.id)}
+                svg
+                style={{
+                    position: 'absolute', 
+                    top: '30%',
+                    left: '30%',
+                    marginTop: '-50%',
+                    marginLeft: '-50%',
+                    fontSize: '1.8em',
+                    lineHeight: '1.8em',
+                }} 
+            />
+        </div>&nbsp;&nbsp;<span className="fw-bold">{layer.feature.properties.name.length > 25 ? layer.feature.properties.name.substring(0,25) + '...' : layer.feature.properties.name}</span>
+        <p><span className="fw-bold">{getPolicyCount(layer.feature.id)}</span> {getPolicyCount(layer.feature.id) == 1 ? 'POLICY' : 'POLICIES'}</p>
+        
+        </>);
+        setTimeout(() => {
+            document.querySelector('.popup-content').innerHTML = html;
+        }, 1000);
+    }
+
     const style = (feature) => {
 
         const scale = (value) => {
@@ -456,32 +490,7 @@ function Map() {
                 layer.bindTooltip(`<div class="country-tooltip"><div class="iso-code">${getCountryISO2(feature.id)}</div></div>`, { permanent: true, direction: "center" });
             }
 
-            let popupContent = ReactDOMServer.renderToString(
-                <>
-                    <div style={{width: '1.4em', height: '1.4em', borderRadius: '50%', overflow: 'hidden', position: 'relative', display: 'inline-block', top: '5px', backgroundColor: '#ccc'}} className="border">
-                        <ReactCountryFlag 
-                            countryCode={getCountryISO2(feature.id)}
-                            svg
-                            style={{
-                                position: 'absolute', 
-                                top: '30%',
-                                left: '30%',
-                                marginTop: '-50%',
-                                marginLeft: '-50%',
-                                fontSize: '1.8em',
-                                lineHeight: '1.8em',
-                            }} 
-                        />
-                        </div>&nbsp;&nbsp;{feature.properties.name}
-                        {/* <>
-                        {
-                            (selectedCountries.includes(feature.properties.name) || selectedCountries.length == 0) && <div>hey</div>
-                            
-
-                        }
-                        </> */}
-                </>
-            );
+            let popupContent = ReactDOMServer.renderToString(<div className="popup-content" style={{width: '200px'}}></div>)
 
             layer.bindPopup(popupContent);
 
@@ -493,6 +502,7 @@ function Map() {
                 layer.setStyle({
                     fillOpacity: 0.6,
                 });
+                setPopupContent(layer);
                 layer.bringToFront();
                 layer.openPopup();
             }
@@ -562,14 +572,6 @@ function Map() {
                                                 <Accordion.Header>POLICY AREAS</Accordion.Header>
                                                 <Accordion.Body className="px-2">
                                                     <div className="scrollarea" style={{ height: '250px' }}>
-                                                        {/* <Row className="mb-2 p-1 list-item-bg">
-                                                            <Col>
-                                                                <label>All</label>
-                                                            </Col>
-                                                            <Col xs="auto">
-                                                                <input type="checkbox" value="all" onChange={toggleAllPolicyAreas}/>
-                                                            </Col>
-                                                        </Row> */}
                                                         {
                                                             policyAreas.map((policy_area, index) => {
                                                                 return (
@@ -748,7 +750,7 @@ function Map() {
                                                                         <Card.Body>
                                                                             <Row key={index} className="mb-2">
                                                                                 <Col>
-                                                                                    <h4><a href={item['External URL']} target="_blank">{item['English title'] ? item['English title'] : item['Original title']} <Icon path={mdiOpenInNew} size={0.5} /></a></h4>
+                                                                                    <h4><a href={item['External URL']} target="_blank" title={item['English title'] ? item['English title'] : item['Original title']}>{item['Original title']} <Icon path={mdiOpenInNew} size={0.5} /></a></h4>
                                                                                 </Col>
                                                                                 <Col xs="auto" className="d-flex align-items-center fw-bold">
                                                                                     {
@@ -793,7 +795,7 @@ function Map() {
                                                                                     {
                                                                                         item['Observatory AI policy areas - primary'].concat(item['Observatory AI policy areas - secondary']).map((policyArea, index) => {
                                                                                             return (
-                                                                                                <div className="policy-area-label">
+                                                                                                <div key={index} className="policy-area-label">
                                                                                                 { policyArea['Policy area'] }
                                                                                                 </div>
                                                                                             )
@@ -872,7 +874,7 @@ function Map() {
                                     </Card.Header>
 
                                     <Card.Body className="p-0">
-                                        <Accordion defaultActiveKey={['0','1']} flush alwaysOpen>
+                                        <Accordion defaultActiveKey={['0','1','2']} flush alwaysOpen>
                                             <Accordion.Item eventKey="0">
                                                 <Accordion.Header>HIGHLIGHTS</Accordion.Header>
                                                 <Accordion.Body className="px-2 fw-bold">
@@ -944,7 +946,7 @@ function Map() {
                                                 <Accordion.Body className="px-2">
                                                     {
                                                         activePolicyAreas.length > 0 ?
-                                                        <BarChart data={activePolicyAreas} chartid={'all'} field="policy_area" />
+                                                        <BarChart data={activePolicyAreas} chartid={'all'} field="policy_area" max={getMax('policyAreas')}/>
                                                         : <div className="p-1 text-center no-policies fw-bold">No Policy Areas Selected</div>
                                                     }
                                                 </Accordion.Body>
@@ -953,9 +955,9 @@ function Map() {
                                                 <Accordion.Header>PUBLISHING TIMELINE</Accordion.Header>
                                                 <Accordion.Body className="px-2">
                                                     {
-                                                        activePolicyAreas.length > 0 ?
-                                                        <BarChart data={activeYears} chartid={'years'} field="year" />
-                                                        : <div className="p-1 text-center no-policies fw-bold">No Years Selected</div>
+                                                        
+                                                        <BarChart data={activeYears} chartid={'years'} field="year" max={getMax('years')}/>
+                                                        
                                                     }
                                                 </Accordion.Body>
                                             </Accordion.Item>

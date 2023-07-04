@@ -155,6 +155,22 @@ h2.accordion-header {
     display: none !important;
 }
 
+.leaflet-popup-content-wrapper {
+    border-radius: 3px;
+}
+
+.leaflet-popup-content {
+    margin: 10px;
+}
+
+.leaflet-popup-close-button {
+    display: none;
+}
+
+.leaflet-popup-content {
+    width: unset !important;
+}
+
 
 // ScrollAreas
 

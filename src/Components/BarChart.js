@@ -14,12 +14,13 @@ const BarChart = (props) => {
     const padding = 10;
     const width = containerWidth - margin.left - margin.right;
     const barHeight = 30;
+    const chartMax = props.max ? props.max : (max(data, (d) => d.count) > 20 ? max(data, (d) => d.count) : 20);
+
+    // first destroy the chart
+    select(".chart-" + props.chartid + " svg").selectAll("*").remove();
 
     const x = scaleLinear()
-      .domain([
-        0,
-        max(data, (d) => d.count) > 20 ? max(data, (d) => d.count) : 20,
-      ])
+      .domain([0,chartMax])
       .range([0, width - 20]);
 
     const chart = select(".chart-" + props.chartid + " svg")
@@ -62,7 +63,7 @@ const BarChart = (props) => {
       .attr("dy", ".35em")
       .attr("fill", "#ccc")
       .text(function (d) {
-        return d[props.field].substring(0, 15) + "...";
+        return props.field == 'year' ? d[props.field] : d[props.field].substring(0, 25) + "...";
       });
 
     bar
