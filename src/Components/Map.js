@@ -160,7 +160,6 @@ function Map() {
                     return r;
                 }, {});
 
-                // Add keys for missing countries
                 for (let count = 0; count < africanCountries.length; count++) {
                     let country = africanCountries[count];
                     if (!policiesDataTransformed[country.iso_code]) {
@@ -168,12 +167,11 @@ function Map() {
                     }
                 }
 
-
                 setFilteredData(policiesDataTransformed);
                 setLoading(false);
                 setYearsLoading(false);
                 setPolicyAreasLoading(false);
-                updateBarChart();
+                // updateBarChart();
 
                 
             })).catch(error => {
@@ -399,6 +397,7 @@ function Map() {
 
         transformFilteredData();
         updateTooltips();
+        updateBarChart();
 
     }, [filteredData]);
 
@@ -543,9 +542,9 @@ function Map() {
                 layer.bindTooltip(`<div class="country-tooltip"><div class="iso-code">${getCountryISO2(feature.id)}</div></div>`, { permanent: true, direction: "center" });
             }
 
-            let popupContent = ReactDOMServer.renderToString(<div className="popup-content" style={{width: '200px'}}></div>)
+            // let popupContent = ReactDOMServer.renderToString(<div className="popup-content" style={{width: '200px'}}></div>)
 
-            layer.bindPopup(popupContent);
+            // layer.bindPopup(popupContent);
 
         }
 
@@ -555,9 +554,14 @@ function Map() {
                 layer.setStyle({
                     fillOpacity: 0.6,
                 });
-                setPopupContent(layer);
-                layer.bringToFront();
-                layer.openPopup();
+
+                console.log(layer.feature.id);
+
+                let countryCheckbox = document.querySelector(`[data-iso-code="${layer.feature.id}"]`);
+                console.log(countryCheckbox);
+                countryCheckbox.checked = true;
+                setSelectedCountries([layer.feature.properties.name]);
+                setShowSection('list');
             }
         });
 
@@ -670,7 +674,7 @@ function Map() {
                                                                                 </label>
                                                                             </Col>
                                                                             <Col xs="auto">
-                                                                                <input className="filter-form-control" type="checkbox" value={country.properties.name} onChange={selectCountry} checked={selectedCountries.includes(country.properties.name)} />
+                                                                                <input className="filter-form-control" data-iso-code={country.id} type="checkbox" value={country.properties.name} onChange={selectCountry} checked={selectedCountries.includes(country.properties.name)} />
                                                                             </Col>
                                                                         </Row>
                                                                     )
