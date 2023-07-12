@@ -6,7 +6,10 @@ import { max } from "d3-array";
 
 const BarChart = (props) => {
   useEffect(() => {
+
+    
     const data = props.data;
+
     const containerWidth = select(".chart-" + props.chartid)
       .node()
       .getBoundingClientRect().width;
@@ -16,7 +19,6 @@ const BarChart = (props) => {
     const barHeight = 30;
     const chartMax = props.max ? props.max : (max(data, (d) => d.count) > 20 ? max(data, (d) => d.count) : 20);
 
-    // first destroy the chart
     select(".chart-" + props.chartid + " svg").selectAll("*").remove();
 
     const x = scaleLinear()

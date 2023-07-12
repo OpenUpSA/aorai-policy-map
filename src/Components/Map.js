@@ -4,9 +4,9 @@ import ReactDOMServer from 'react-dom/server';
 import axios from 'axios';
 
 import { Icon } from '@mdi/react';
-import { mdiFilterOutline, mdiCogOutline, mdiInformationSlabCircle,mdiOpenInNew } from '@mdi/js';
+import { mdiFilterOutline, mdiCogOutline, mdiInformationSlabCircle, mdiOpenInNew, mdiHelpCircle } from '@mdi/js';
 
-import { Card, Container, Row, Col, Accordion, Button, Form, Popover, OverlayTrigger } from 'react-bootstrap';
+import { Card, Container, Row, Col, Accordion, Button, Form, Popover, OverlayTrigger, Placeholder } from 'react-bootstrap';
 import Spinner from 'react-bootstrap/Spinner';
 
 import { Animate, AnimateKeyframes, AnimateGroup } from "react-simple-animate";
@@ -27,6 +27,8 @@ import BarChart from './BarChart';
 import countryIso3To2 from 'country-iso-3-to-2';
 import { filter, geoConicEquidistantRaw } from 'd3';
 
+import logo from '../aorai.svg';
+
 
 
 function Map() {
@@ -35,6 +37,8 @@ function Map() {
     }
     const [loading, setLoading] = useState(true);
     const [loadingText, setLoadingText] = useState('Loading...');
+    const [yearsLoading, setYearsLoading] = useState(false);
+    const [policyAreasLoading, setPolicyAreasLoading] = useState(false);
     const [position, setPosition] = useState([-7, 22]);
     const [policyAreas, setPolicyAreas] = useState([]);
     const [selectedPolicyAreas, setSelectedPolicyAreas] = useState([]);
@@ -48,6 +52,7 @@ function Map() {
     const [showSection, setShowSection] = useState('map');
     const [regions, setRegions] = useState([]);
     const [selectedRegion, setSelectedRegion] = useState('');
+    const [aiDirect, setAiDirect] = useState(false);
 
     useEffect(() => {
 
@@ -65,8 +70,16 @@ function Map() {
 
         let yearsArray = [];
         for (let year = selectedYears[0]; year <= selectedYears[1]; year++) {
-            yearsArray.push(year);
+            if(year == 1999) {
+                for (let yr = 1960; yr <= 1999; yr++) {
+                    yearsArray.push(yr);
+                }
+            } else {
+                yearsArray.push(year);
+            }
         }
+
+    
         
         let dateWhere = '(Year,in,' + yearsArray.join(',') + ')';
 
@@ -88,6 +101,9 @@ function Map() {
 
         where = where + '~and(Analysis status,eq,Publish to website)';
 
+        if(aiDirect) {
+            where = where + '~and(AI reference,eq,Direct)';
+        }
 
         axios.get(api.base_url + '/Policy and Governance Map', {
             headers: {
@@ -95,7 +111,7 @@ function Map() {
             },
             params: {
                 limit: 150,
-                fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary',
+                fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference',
                 'nested[Country][fields]': 'Country name,Country code',
                 where: where
             }
@@ -121,7 +137,7 @@ function Map() {
                     },
                     params: {
                         limit: 150,
-                        fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary',
+                        fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference',
                         'nested[Country][fields]': 'Country name,Country code',
                         where: where,
                         // where: '(Analysis status,eq,Publish to website)~and(Country,isnot,null)',
@@ -155,6 +171,9 @@ function Map() {
 
                 setFilteredData(policiesDataTransformed);
                 setLoading(false);
+                setYearsLoading(false);
+                setPolicyAreasLoading(false);
+                updateBarChart();
 
                 
             })).catch(error => {
@@ -173,6 +192,21 @@ function Map() {
                 'xc-token': process.env.API_KEY
             }
         }).then(function(response) {
+
+            // order by name
+            response.data.list.sort(function(a, b) {
+                var nameA = a['Policy area'].toUpperCase();
+                var nameB = b['Policy area'].toUpperCase(); 
+                if (nameA < nameB) {
+                    return -1;
+                }
+                if (nameA > nameB) {
+                return 1;
+                }
+            });
+            
+
+
             setPolicyAreas(response.data.list);
         })
     
@@ -212,17 +246,15 @@ function Map() {
 
         })
 
-        
-
-            
-
     }
 
     useEffect(() => {
 
+        setPolicyAreasLoading(true);
+        setYearsLoading(true);
         getPolicies();
 
-    }, [selectedPolicyAreas, selectedCountries, selectedYears, selectedRegion]);
+    }, [selectedPolicyAreas, selectedCountries, selectedYears, selectedRegion, aiDirect]);
 
 
     const getPolicyCount = (iso_code) => {
@@ -298,6 +330,11 @@ function Map() {
     
     }
 
+    const toggleAiDirect = () => {
+
+        setAiDirect(!aiDirect);
+
+    }
 
 
     const transformFilteredData = () => {
@@ -315,7 +352,7 @@ function Map() {
         policiesData = policiesData.flat();
 
         setPolicies(policiesData);
-        updateBarChart();
+        
     
     }
 
@@ -376,6 +413,8 @@ function Map() {
 
 
     }
+
+
     
 
     const updateBarChart = () => {
@@ -411,26 +450,40 @@ function Map() {
             setActivePolicyAreas([]);
         }
 
-
         let activeYears = [];
+        
+        activeYears.push({year: 'PRE 2000', count: 0});
 
         Object.keys(filteredData).forEach((key)=>{
+
             filteredData[key].forEach((policy)=>{
+
                 policy.Year.forEach((year)=>{
-                    if(activeYears.find(yr => yr.year == year.Year) == undefined) {
-                        activeYears.push({
-                            year: year.Year.toString(),
-                            count: 1
-                        });
+                    if (parseInt(year.Year) < 2000) {
+                        let pre2000 = activeYears.find((o) => o.year == 'PRE 2000');
+                        pre2000.count++;
+                        activeYears = activeYears.filter((o) => o.year != year.Year);
                     } else {
-                        activeYears.find(yr => yr.year == year.Year).count++;
+                        if(activeYears.find(yr => yr.year == year.Year) == undefined) {
+                            activeYears.push({
+                                year: year.Year,
+                                count: 1
+                            });
+                        } else {
+                            activeYears.find(yr => yr.year == year.Year).count++;
+                        }
                     }
                 });
+            
             });
+        
         });
 
-        // sort ativeYears by year
         activeYears.sort((a,b) => (a.year > b.year) ? 1 : ((b.year > a.year) ? -1 : 0));
+
+        activeYears.unshift(activeYears.pop());
+
+        activeYears = activeYears.filter((o) => o.count > 0);
 
         setActiveYears(activeYears);
 
@@ -548,7 +601,6 @@ function Map() {
                             zoom={4}
                             scrollWheelZoom={false}
                             zoomControl={false}
-
                         >
                             <LayerGroup>
                                 <GeoJSON data={allCountries} style={style} onEachFeature={onEachFeature} refresh={refreshMap}/>
@@ -665,9 +717,10 @@ function Map() {
                                                         <Col className="pe-0">
                                                             <Form.Select value={selectedYears[0]} className="bg-control-grey" size="sm" onChange={ e => selectYear(e, 'start')}>
                                                             {
-                                                                Array.from({ length: 2023 - 1960 + 1 }, (_, i) => i + 1960).map((year) => {
+                                                                Array.from({ length: 2023 - 1999 + 1 }, (_, i) => i + 1999).map((year) => {
                                                                     return (
-                                                                        <option key={year} value={year}>{year}</option>
+                                                                        
+                                                                        <option key={year} value={year == 1999 ? 'PRE 2000' : year}>{year == 1999 ? 'PRE 2000' : year}</option>
                                                                     )
                                                                 })
 
@@ -680,7 +733,7 @@ function Map() {
                                                         <Col className="ps-0">
                                                             <Form.Select value={selectedYears[1]} className="bg-control-grey" size="sm" onChange={ e => selectYear(e, 'end')}>
                                                             {
-                                                                Array.from({ length: 2023 - 1960 + 1 }, (_, i) => i + 1960).map((year) => {
+                                                                Array.from({ length: 2023 - 2000 + 1 }, (_, i) => i + 2000).map((year) => {
                                                                     return (
                                                                         <option key={year} value={year}>{year}</option>
                                                                     )
@@ -692,28 +745,50 @@ function Map() {
                                                     </Row>
                                                 </Accordion.Body>
                                             </Accordion.Item>
-                                        </Accordion>
-                                    </Card.Body>
-                                </Card>
-                            </Animate>
-
-                            {/* SETTINGS */}
-                            {/* <Animate start={{ opacity: 0, filter: 'blur(10px)' }} end={{ opacity: 1, filter: 'blur(0)' }} sequenceIndex={2}>
-                                <Card className="mt-3 shadow-sm border-0 rounded">
-                                    <Card.Body className="py-0">
-                                        <Accordion defaultActiveKey="0" flush>
-                                            <Accordion.Item eventKey="0">
-                                                <Accordion.Header>
-                                                    <Icon path={mdiCogOutline} size={1} /> <div>SETTINGS</div>
-                                                </Accordion.Header>
-                                                <Accordion.Body className="px-0">
-                                                    
+                                            <Accordion.Item eventKey="4">
+                                                <Accordion.Header>SETTINGS</Accordion.Header>
+                                                <Accordion.Body className="px-2">
+                                                    <Form.Check
+                                                        type="switch"
+                                                        id="ai-direct"
+                                                        label="AI Direct"
+                                                        checked={aiDirect}
+                                                        onChange={toggleAiDirect}
+                                                    />
                                                 </Accordion.Body>
                                             </Accordion.Item>
                                         </Accordion>
+
+                                       
+                                
                                     </Card.Body>
+                                    <Card.Footer className="py-3">
+                                        <Row>
+                                            <Col>
+                                                <Row>
+                                                    <Col xs="auto" className="">
+                                                        <Icon path={mdiHelpCircle} size={0.9} color="#005450" style={{position: 'relative', top: '20%'}}/>
+                                                    </Col>
+                                                    <Col>
+                                                        <a href="https://bit.ly/PGMMethod" target="_blank" className="text-decoration-none fw-bold">Policy and Governance Map Manual&nbsp;<Icon path={mdiOpenInNew} size={0.5} style={{position: 'relative', top: '-2px'}}/></a>
+                                                    </Col>
+
+                                                </Row>
+                                             
+                                            </Col>
+                                            <Col>
+                                                <a href="https://www.africanobservatory.ai/" target="_blank"><img src={logo} style={{width: '100%'}}/></a>
+                                            </Col>
+                                        </Row>
+                                    
+                                    </Card.Footer>
                                 </Card>
-                            </Animate> */}
+                            </Animate>
+
+                            
+
+
+                           
 
                         </Col>
                         <Col className="pe-none">
@@ -725,11 +800,8 @@ function Map() {
                                                 <Col className="pe-1">
                                                     <Button className="rounded-0 w-100" size="sm" variant={showSection == 'map' ? 'primary' : 'light'} onClick={() => setShowSection('map')}>Map</Button>
                                                 </Col>
-                                                <Col className="px-1">
-                                                    <Button className="rounded-0 w-100" size="sm" variant={showSection == 'list' ? 'primary' : 'light'}onClick={() => setShowSection('list')}>List</Button>
-                                                </Col>
                                                 <Col className="ps-1">
-                                                    <Button className="rounded-0 w-100" size="sm" variant={showSection == 'policies' ? 'primary' : 'light'}onClick={() => setShowSection('policies')}>Policies</Button>
+                                                    <Button className="rounded-0 w-100" size="sm" variant={showSection == 'list' ? 'primary' : 'light'}onClick={() => setShowSection('list')}>List</Button>
                                                 </Col>
                                             </Row>
                                         </Card.Body>
@@ -738,7 +810,7 @@ function Map() {
                             </Animate>
 
                             {
-                                showSection == 'policies' && 
+                                showSection == 'list' && 
                                     <Row className="mt-2">
                                         <Col>
                                             <div>
@@ -750,7 +822,9 @@ function Map() {
                                                                         <Card.Body>
                                                                             <Row key={index} className="mb-2">
                                                                                 <Col>
-                                                                                    <h4><a href={item['External URL']} target="_blank" title={item['English title'] ? item['English title'] : item['Original title']}>{item['Original title']} <Icon path={mdiOpenInNew} size={0.5} /></a></h4>
+                                                                                    <h4><a href={item['External URL']} target="_blank" title={item['English title'] ? item['English title'] : item['Original title']}>{item['Original title']} <Icon path={mdiOpenInNew} size={0.5} /></a>&nbsp;&nbsp;{
+                                                                                        item['Featured policy and governance'] && <a href={item['Featured policy and governance']} className="badge bg-primary text-white">Featured</a>
+                                                                                    }</h4>
                                                                                 </Col>
                                                                                 <Col xs="auto" className="d-flex align-items-center fw-bold">
                                                                                     {
@@ -814,54 +888,7 @@ function Map() {
                                     </Row>
                             }
 
-                            {
-                                showSection == 'list' &&
-
-                                    Object.keys(filteredData).map((key,index)=>{
-                                        return (
-                                            <Row key={index}>
-                                                <Col>
-                                                    <Card className="mt-2 policies-list-item shadow-sm border-0 rounded data-card pe-auto">
-                                                        <Card.Body>
-                                                            <Row>
-                                                                <Col xs="auto">
-                                                                    <div style={{width: '2em', height: '2em', borderRadius: '50%', overflow: 'hidden', position: 'relative', display: 'inline-block', top: '5px', backgroundColor: '#ccc'}} className="border">
-                                                                        <ReactCountryFlag 
-                                                                            countryCode={getCountryISO2(key)}
-                                                                            svg
-                                                                            style={{
-                                                                                position: 'absolute', 
-                                                                                top: '30%',
-                                                                                left: '30%',
-                                                                                marginTop: '-50%',
-                                                                                marginLeft: '-50%',
-                                                                                fontSize: '2em',
-                                                                                lineHeight: '1.8em',
-                                                                            }} 
-                                                                        />
-                                                                    </div>
-                                                                </Col>
-                                                                <Col className="d-flex align-items-center">
-                                                                    <h4 className="mb-0">{
-                                                                    allCountries.features.filter((country) => {
-                                                                        return country.id == key
-                                                                    })[0] != undefined ? allCountries.features.filter((country) => {
-                                                                        return country.id == key
-                                                                    })[0].properties.name : key
-                                                                    }</h4>
-                                                                </Col>
-                                                                <Col xs="auto">
-                                                                    {filteredData[key].length}
-                                                                </Col>
-                                                            </Row>
-                                                        </Card.Body>    
-                                                    </Card>
-                                                </Col>
-                                            </Row>
-                                        )
-
-                                    })
-                            }
+                            
                         
                         </Col>
                         <Col md={3} className="pe-auto">
@@ -881,7 +908,7 @@ function Map() {
                                                     <Container>
 
                                                         <Row className="p-1 list-item-bg">
-                                                            <Col>AI Law and Policy Items</Col>
+                                                            <Col>Policy and Governance Items</Col>
                                                             <Col xs="auto">
                                                                 {itemsCount(filteredData)}
                                                             </Col>
@@ -945,9 +972,10 @@ function Map() {
                                                 <Accordion.Header>AI POLICY AREAS</Accordion.Header>
                                                 <Accordion.Body className="px-2">
                                                     {
-                                                        activePolicyAreas.length > 0 ?
-                                                        <BarChart data={activePolicyAreas} chartid={'all'} field="policy_area" max={getMax('policyAreas')}/>
-                                                        : <div className="p-1 text-center no-policies fw-bold">No Policy Areas Selected</div>
+                                                        policyAreasLoading ? <Placeholder as="p" animation="glow"><Placeholder xs={12} /></Placeholder> :
+                                                            activePolicyAreas.length > 0 ?
+                                                            <BarChart data={activePolicyAreas} chartid={'all'} field="policy_area" max={getMax('policyAreas')}/>
+                                                            : <div className="p-1 text-center no-policies fw-bold">No Policy Areas Selected</div>
                                                     }
                                                 </Accordion.Body>
                                             </Accordion.Item>
@@ -955,9 +983,9 @@ function Map() {
                                                 <Accordion.Header>PUBLISHING TIMELINE</Accordion.Header>
                                                 <Accordion.Body className="px-2">
                                                     {
-                                                        
+                                                        yearsLoading ? <Placeholder as="p" animation="glow"><Placeholder xs={12} /></Placeholder> :
+                                                        activeYears.length > 0 &&
                                                         <BarChart data={activeYears} chartid={'years'} field="year" max={getMax('years')}/>
-                                                        
                                                     }
                                                 </Accordion.Body>
                                             </Accordion.Item>
