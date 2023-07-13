@@ -32,12 +32,33 @@ body.bg {
 
 
 
+
+
 // Controls
 .controls-overlay {
     position: absolute;
     top: 0;
     left: 0;
     z-index: 400;
+}
+
+// < tablet
+@media (max-width: 991px) {
+    .policy-map {
+        height: unset;
+    }
+
+    .map-container {
+        height: 50vh; 
+        width: 100%; 
+    }
+    
+    
+    .controls-overlay {
+        position: static;
+        z-index: unset;
+    }
+
 }
 
 .card-header {

@@ -45,13 +45,13 @@ function Map() {
     const [selectedCountries, setSelectedCountries] = useState([]);
     const [selectedYears, setSelectedYears] = useState([1960,2023]);
     const [types, setTypes] = useState([
-        'Law, standard, code or treaty',
-        'Policy, strategy, plan or guideline',
-        'Report, database or tool',
-        'Organisation or project',
-        'Unknown/ Not applicable'
+        ['Law, standard, code or treaty','treaty'],
+        ['Policy, strategy, plan or guideline','strategy'],
+        ['Report, database or tool','report'],
+        ['Organisation or project','organisation'],
+        ['Unknown/ Not applicable','unknown']
     ]);
-    const [activeTypes, setActiveTypes] = useState([])
+    const [selectedTypes, setSelectedTypes] = useState([]);
     const [activePolicyAreas, setActivePolicyAreas] = useState([]);
     const [activeYears, setActiveYears] = useState([]);
     const [filteredData, setFilteredData] = useState([]);
@@ -113,6 +113,23 @@ function Map() {
             where = where + '~and(AI reference,eq,Direct)';
         }
 
+        if(selectedTypes.length) {
+
+            let typeWhere = '';
+
+            for (let i = 0; i < selectedTypes.length; i++) {
+                if(typeWhere != '') {
+                    typeWhere = typeWhere + '~or(Policy or governance type,like,%' + selectedTypes[i] + '%)';
+                } else {
+                    typeWhere = '(Policy or governance type,like,%' + selectedTypes[i] + '%)';
+                }
+            }
+
+            where = where + '~and(' + typeWhere + ')';
+        
+        }
+
+
         
 
         axios.get(api.base_url + '/Policy and Governance Map', {
@@ -150,7 +167,6 @@ function Map() {
                         fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference,Policy or governance type',
                         'nested[Country][fields]': 'Country name,Country code',
                         where: where,
-                        // where: '(Analysis status,eq,Publish to website)~and(Country,isnot,null)',
                     }
                 }))
 
@@ -261,7 +277,7 @@ function Map() {
         setYearsLoading(true);
         getPolicies();
 
-    }, [selectedPolicyAreas, selectedCountries, selectedYears, selectedRegion, aiDirect]);
+    }, [selectedPolicyAreas, selectedCountries, selectedYears, selectedRegion, aiDirect, selectedTypes]);
 
 
     const getPolicyCount = (iso_code) => {
@@ -349,6 +365,26 @@ function Map() {
 
         setSelectedCountries(region_countries);
     
+    }
+
+    const selectType = (e) => {
+
+        let type = e.target.value;
+        let checked = e.target.checked;
+
+        if (type == 'all') {
+            if (checked) {
+                setSelectedTypes([]);
+            }
+        } else {
+            if (checked) {
+                setSelectedTypes([...selectedTypes, type]);
+            } else {
+                setSelectedTypes(selectedTypes.filter((item) => item !== type));
+            }
+        }
+
+        
     }
 
     const toggleAiDirect = () => {
@@ -637,7 +673,7 @@ function Map() {
                 
                 <Container fluid className="controls-overlay py-2 pe-none">
                     <Row className="pe-none">
-                        <Col md={3} className="pe-auto">
+                        <Col className="pe-auto mt-2" xs={{ order: 1}} md={{order: 0, span: 3}}>
 
                             {/* FILTERS */}
                             <Animate start={{ opacity: 0, filter: 'blur(10px)' }} end={{ opacity: 1, filter: 'blur(0)' }} sequenceIndex={1}>
@@ -749,7 +785,7 @@ function Map() {
                                                 </Accordion.Body>
                                             </Accordion.Item>
                                             <Accordion.Item eventKey="3">
-                                                <Accordion.Header>DATE SETTINGS</Accordion.Header>
+                                                <Accordion.Header>DATE RANGE</Accordion.Header>
                                                 <Accordion.Body className="px-2">
                                                     <Row>
                                                         <Col xs="auto" className="d-flex align-items-center fw-bold">Period:</Col>
@@ -785,12 +821,37 @@ function Map() {
                                                 </Accordion.Body>
                                             </Accordion.Item>
                                             <Accordion.Item eventKey="4">
-                                                <Accordion.Header>SETTINGS</Accordion.Header>
+                                                <Accordion.Header>OTHER FILTERS</Accordion.Header>
                                                 <Accordion.Body className="px-2">
+                                                    <div className="scrollarea" style={{ height: '215px' }}>    
+                                                        <Row className="mb-2 p-1 list-item-bg">
+                                                            <Col>All types</Col>
+                                                            <Col xs="auto">
+                                                                <input className="filter-form-control" type="checkbox" value="all" onChange={selectType} checked={selectedTypes.length == 0} />
+                                                            </Col>
+                                                        </Row>
+                                                            
+                                                        {
+                                                            types.map((type, index) => {
+                                                                return (
+                                                                    <Row key={index} className="mb-2 p-1 list-item-bg">
+                                                                        <Col>{type[0]}</Col>
+                                                                        <Col xs="auto">
+                                                                            <input className="filter-form-control" type="checkbox" value={type[1]} onChange={selectType} checked={selectedTypes.includes(type[1])} />
+                                                                        </Col>
+                                                                    </Row>
+                                                                )
+                                                            })   
+                                                        }
+                                                    </div>
+
+
                                                     <Form.Check
+                                                        size="lg"
+                                                        className="my-2"
                                                         type="switch"
                                                         id="ai-direct"
-                                                        label="AI Direct"
+                                                        label="Directly AI relevant"
                                                         checked={aiDirect}
                                                         onChange={toggleAiDirect}
                                                     />
@@ -830,7 +891,7 @@ function Map() {
                            
 
                         </Col>
-                        <Col className="pe-none">
+                        <Col className="pe-none" xs={{ order: 0 }} md={{order: 1}}>
                             <Animate start={{ opacity: 0, filter: 'blur(10px)' }} end={{ opacity: 1, filter: 'blur(0)' }} sequenceIndex={0}>
                                 <div className="d-flex justify-content-center">
                                     <Card className="shadow-sm border-0 rounded pe-auto">
@@ -930,7 +991,7 @@ function Map() {
                             
                         
                         </Col>
-                        <Col md={3} className="pe-auto">
+                        <Col className="pe-auto mt-2" xs={{ order: 2 }} md={{order: 2, span: 3}}>
 
                             {/* DETAILS */}
                             <Animate start={{ opacity: 0, filter: 'blur(10px)' }} end={{ opacity: 1, filter: 'blur(0)' }} sequenceIndex={3}>
