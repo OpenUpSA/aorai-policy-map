@@ -44,6 +44,14 @@ function Map() {
     const [selectedPolicyAreas, setSelectedPolicyAreas] = useState([]);
     const [selectedCountries, setSelectedCountries] = useState([]);
     const [selectedYears, setSelectedYears] = useState([1960,2023]);
+    const [types, setTypes] = useState([
+        'Law, standard, code or treaty',
+        'Policy, strategy, plan or guideline',
+        'Report, database or tool',
+        'Organisation or project',
+        'Unknown/ Not applicable'
+    ]);
+    const [activeTypes, setActiveTypes] = useState([])
     const [activePolicyAreas, setActivePolicyAreas] = useState([]);
     const [activeYears, setActiveYears] = useState([]);
     const [filteredData, setFilteredData] = useState([]);
@@ -105,13 +113,15 @@ function Map() {
             where = where + '~and(AI reference,eq,Direct)';
         }
 
+        
+
         axios.get(api.base_url + '/Policy and Governance Map', {
             headers: {
                 'xc-token': process.env.API_KEY
             },
             params: {
                 limit: 150,
-                fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference',
+                fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference,Policy or governance type',
                 'nested[Country][fields]': 'Country name,Country code',
                 where: where
             }
@@ -137,7 +147,7 @@ function Map() {
                     },
                     params: {
                         limit: 150,
-                        fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference',
+                        fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference,Policy or governance type',
                         'nested[Country][fields]': 'Country name,Country code',
                         where: where,
                         // where: '(Analysis status,eq,Publish to website)~and(Country,isnot,null)',
@@ -171,7 +181,6 @@ function Map() {
                 setLoading(false);
                 setYearsLoading(false);
                 setPolicyAreasLoading(false);
-                // updateBarChart();
 
                 
             })).catch(error => {
@@ -270,10 +279,17 @@ function Map() {
         let policy = e.target.value;
         let checked = e.target.checked;
 
-        if (checked) {
-            setSelectedPolicyAreas([...selectedPolicyAreas, policy]);
+        if (policy == 'all') {
+            if (checked) {
+                setSelectedPolicyAreas([]);
+            } 
         } else {
-            setSelectedPolicyAreas(selectedPolicyAreas.filter((item) => item !== policy));
+
+            if (checked) {
+                setSelectedPolicyAreas([...selectedPolicyAreas, policy]);
+            } else {
+                setSelectedPolicyAreas(selectedPolicyAreas.filter((item) => item !== policy));
+            }
         }
     }
 
@@ -282,10 +298,17 @@ function Map() {
         let country = e.target.value;
         let checked = e.target.checked;
 
-        if (checked) {
-            setSelectedCountries([...selectedCountries, country]);
+        if(country == 'all') {
+            if (checked) {
+                setSelectedCountries([]);
+            }
         } else {
-            setSelectedCountries(selectedCountries.filter((item) => item !== country));
+
+            if (checked) {
+                setSelectedCountries([...selectedCountries, country]);
+            } else {
+                setSelectedCountries(selectedCountries.filter((item) => item !== country));
+            }
         }
 
         setSelectedRegion('');
@@ -628,6 +651,12 @@ function Map() {
                                                 <Accordion.Header>POLICY AREAS</Accordion.Header>
                                                 <Accordion.Body className="px-2">
                                                     <div className="scrollarea" style={{ height: '250px' }}>
+                                                        <Row className="mb-2 p-1 list-item-bg">
+                                                            <Col><label>All Policy Areas</label></Col>
+                                                            <Col xs="auto">
+                                                                <input className="filter-form-control" type="checkbox" value="all" onChange={selectPolicyArea} checked={selectedPolicyAreas.length == 0} />
+                                                            </Col>
+                                                        </Row>
                                                         {
                                                             policyAreas.map((policy_area, index) => {
                                                                 return (
@@ -649,6 +678,12 @@ function Map() {
                                                 <Accordion.Header>COUNTRIES</Accordion.Header>
                                                 <Accordion.Body className="px-2">
                                                     <div className="scrollarea" style={{ height: '250px' }}>
+                                                        <Row className="mb-2 p-1 list-item-bg">
+                                                            <Col><label>All Countries</label></Col>
+                                                            <Col xs="auto">
+                                                                <input className="filter-form-control" type="checkbox" value="all" onChange={selectCountry} checked={selectedCountries.length == 0} />
+                                                            </Col>
+                                                        </Row>
                                                         {
                                                             allCountries.features.map((country, index) => {
                                                                 if(africanCountries.map(cntry => cntry.iso_code).includes(country.id)) {
