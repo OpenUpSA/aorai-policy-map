@@ -166,7 +166,7 @@ function Map() {
                         limit: 150,
                         fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference,Policy or governance type',
                         'nested[Country][fields]': 'Country name,Country code',
-                        where: where,
+                        where: where
                     }
                 }))
 
@@ -193,7 +193,28 @@ function Map() {
                     }
                 }
 
-                setFilteredData(policiesDataTransformed);
+                let policiesDataTransformedSorted = {};
+                Object.keys(policiesDataTransformed).sort().forEach(function(key) {
+                    policiesDataTransformedSorted[key] = policiesDataTransformed[key];
+
+                    // order by year
+                    policiesDataTransformedSorted[key].sort(function(a, b) {
+                        var nameA = a.Year[0].Year.toUpperCase();
+                        var nameB = b.Year[0].Year.toUpperCase(); 
+                        if (nameA < nameB) {
+                            return -1;
+                        }
+                        if (nameA > nameB) {
+                        return 1;
+                        }
+                    });
+
+
+                });
+
+
+
+                setFilteredData(policiesDataTransformedSorted);
                 setLoading(false);
                 setYearsLoading(false);
                 setPolicyAreasLoading(false);
@@ -620,7 +641,7 @@ function Map() {
                 console.log(countryCheckbox);
                 countryCheckbox.checked = true;
                 setSelectedCountries([layer.feature.properties.name]);
-                setShowSection('list');
+                // setShowSection('list');
             }
         });
 
@@ -675,6 +696,19 @@ function Map() {
                     <Row className="pe-none">
                         <Col className="pe-auto mt-2" xs={{ order: 1}} md={{order: 0, span: 3}}>
 
+                            <Animate start={{ opacity: 0, filter: 'blur(10px)' }} end={{ opacity: 1, filter: 'blur(0)' }} sequenceIndex={1}>
+                                <Card className="shadow-sm border-0 rounded sticky-top mb-2">
+                                    <Card.Footer>
+                                        <Row>
+                                            <Col>
+                                                <a href="https://www.africanobservatory.ai/" target="_blank"><img src={logo} style={{width: '100%'}}/></a>
+                                            </Col>
+                                            <Col><h1 className="fs-6 text-uppercase mb-0 mt-1 text-primary">Policy and Governance Map</h1></Col>
+                                        </Row>
+                                    </Card.Footer>
+                                </Card>
+                            </Animate>
+
                             {/* FILTERS */}
                             <Animate start={{ opacity: 0, filter: 'blur(10px)' }} end={{ opacity: 1, filter: 'blur(0)' }} sequenceIndex={1}>
                                 <Card className="shadow-sm border-0 rounded sticky-top">
@@ -710,6 +744,44 @@ function Map() {
                                                     </div>
                                                 </Accordion.Body>
                                             </Accordion.Item>
+                                            <Accordion.Item eventKey="4">
+                                                <Accordion.Header>TYPES</Accordion.Header>
+                                                <Accordion.Body className="px-2">
+                                                    <div className="scrollarea" style={{ height: '215px' }}>    
+                                                        <Row className="mb-2 p-1 list-item-bg">
+                                                            <Col>All types</Col>
+                                                            <Col xs="auto">
+                                                                <input className="filter-form-control" type="checkbox" value="all" onChange={selectType} checked={selectedTypes.length == 0} />
+                                                            </Col>
+                                                        </Row>
+                                                            
+                                                        {
+                                                            types.map((type, index) => {
+                                                                return (
+                                                                    <Row key={index} className="mb-2 p-1 list-item-bg">
+                                                                        <Col>{type[0]}</Col>
+                                                                        <Col xs="auto">
+                                                                            <input className="filter-form-control" type="checkbox" value={type[1]} onChange={selectType} checked={selectedTypes.includes(type[1])} />
+                                                                        </Col>
+                                                                    </Row>
+                                                                )
+                                                            })   
+                                                        }
+                                                    </div>
+
+
+                                                    <Form.Check
+                                                        size="lg"
+                                                        className="my-2"
+                                                        type="switch"
+                                                        id="ai-direct"
+                                                        label="Direct reference to AI"
+                                                        checked={aiDirect}
+                                                        onChange={toggleAiDirect}
+                                                    />
+                                                </Accordion.Body>
+                                            </Accordion.Item>
+                                            
                                             <Accordion.Item eventKey="1">
                                                 <Accordion.Header>COUNTRIES</Accordion.Header>
                                                 <Accordion.Body className="px-2">
@@ -820,44 +892,7 @@ function Map() {
                                                     </Row>
                                                 </Accordion.Body>
                                             </Accordion.Item>
-                                            <Accordion.Item eventKey="4">
-                                                <Accordion.Header>OTHER FILTERS</Accordion.Header>
-                                                <Accordion.Body className="px-2">
-                                                    <div className="scrollarea" style={{ height: '215px' }}>    
-                                                        <Row className="mb-2 p-1 list-item-bg">
-                                                            <Col>All types</Col>
-                                                            <Col xs="auto">
-                                                                <input className="filter-form-control" type="checkbox" value="all" onChange={selectType} checked={selectedTypes.length == 0} />
-                                                            </Col>
-                                                        </Row>
-                                                            
-                                                        {
-                                                            types.map((type, index) => {
-                                                                return (
-                                                                    <Row key={index} className="mb-2 p-1 list-item-bg">
-                                                                        <Col>{type[0]}</Col>
-                                                                        <Col xs="auto">
-                                                                            <input className="filter-form-control" type="checkbox" value={type[1]} onChange={selectType} checked={selectedTypes.includes(type[1])} />
-                                                                        </Col>
-                                                                    </Row>
-                                                                )
-                                                            })   
-                                                        }
-                                                    </div>
-
-
-                                                    <Form.Check
-                                                        size="lg"
-                                                        className="my-2"
-                                                        type="switch"
-                                                        id="ai-direct"
-                                                        label="Directly AI relevant"
-                                                        checked={aiDirect}
-                                                        onChange={toggleAiDirect}
-                                                    />
-                                                </Accordion.Body>
-                                            </Accordion.Item>
-                                        </Accordion>
+                                        </Accordion>    
 
                                        
                                 
@@ -866,19 +901,12 @@ function Map() {
                                         <Row>
                                             <Col>
                                                 <Row>
-                                                    <Col xs="auto" className="">
-                                                        <Icon path={mdiHelpCircle} size={0.9} color="#005450" style={{position: 'relative', top: '20%'}}/>
-                                                    </Col>
                                                     <Col>
-                                                        <a href="https://bit.ly/PGMMethod" target="_blank" className="text-decoration-none fw-bold">Policy and Governance Map Manual&nbsp;<Icon path={mdiOpenInNew} size={0.5} style={{position: 'relative', top: '-2px'}}/></a>
+                                                        <Icon path={mdiHelpCircle} size={0.9} color="#005450" /> <a href="https://bit.ly/PGMMethod" target="_blank" className="text-decoration-none fw-bold">Policy and Governance Map Method&nbsp;<Icon path={mdiOpenInNew} size={0.5} style={{position: 'relative', top: '-2px'}}/></a>
                                                     </Col>
-
                                                 </Row>
-                                             
                                             </Col>
-                                            <Col>
-                                                <a href="https://www.africanobservatory.ai/" target="_blank"><img src={logo} style={{width: '100%'}}/></a>
-                                            </Col>
+                                            
                                         </Row>
                                     
                                     </Card.Footer>
@@ -931,6 +959,13 @@ function Map() {
                                                                                         (item.Year.map((year, index) => 
                                                                                             <span key={index}>{year.Year}</span>
                                                                                         ))
+                                                                                    }
+                                                                                </Col>
+                                                                            </Row>
+                                                                            <Row>
+                                                                                <Col>
+                                                                                    {
+                                                                                        item['Policy or governance type'] && <span>{item['Policy or governance type']}</span>
                                                                                     }
                                                                                 </Col>
                                                                             </Row>
