@@ -13,7 +13,7 @@ import { Animate, AnimateKeyframes, AnimateGroup } from "react-simple-animate";
 
 import { MultiSelect } from 'react-multi-select-component';
 
-import { MapContainer, GeoJSON, LayerGroup, Marker, Popup } from 'react-leaflet';
+import { MapContainer, GeoJSON, LayerGroup, Marker, Popup, SVGOverlay } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 import getCountryISO2 from 'country-iso-3-to-2';
@@ -66,7 +66,7 @@ function Map() {
 
         getPolicies();
         getPolicyAreas();
-        getRegions();
+        // getRegions();
         
         
     }, []);
@@ -86,29 +86,19 @@ function Map() {
                 yearsArray.push(year);
             }
         }
-
-    
         
-        let dateWhere = '(Year,in,' + yearsArray.join(',') + ')';
+        let where = '';
 
-        if(selectedCountries.length) {
-            countryWhere = '(Country,in,' + selectedCountries.join(',') + ')';
-        }
+        where = '(Year,in,' + yearsArray.join(',') + ')';
+
         if (selectedPolicyAreas.length) {
             policyAreaWhere = '((Observatory AI policy areas - primary,in,' + selectedPolicyAreas.join(',') + ')~or(Observatory AI policy areas - secondary,in,' + selectedPolicyAreas.join(',') + '))';
         }
 
-        let where = '';
-        if (countryWhere != '' && policyAreaWhere != '') {
-            where = dateWhere + '~and(Country,isnot,null)~and' + countryWhere + '~and' + policyAreaWhere;
-        } else if (countryWhere == '' && policyAreaWhere == '') {
-            where = dateWhere + '~and(Country,isnot,null)';
-        } else {
-            where = dateWhere + '~and(Country,isnot,null)~and' + countryWhere + policyAreaWhere;
+        if(policyAreaWhere != '') {
+            where = where + '~and' + policyAreaWhere;
         }
-
-        where = where + '~and(Analysis status,eq,Publish to website)';
-
+        
         if(aiDirect) {
             where = where + '~and(AI reference,eq,Direct)';
         }
@@ -129,8 +119,21 @@ function Map() {
         
         }
 
+        if(selectedCountries != null && selectedCountries.length) {
+            countryWhere = '(Country,in,' + selectedCountries.join(',') + ')';
+        } else if(selectedCountries != null) {
+            countryWhere = '(Country,isnot,null)';
+        }
 
-        
+        if(countryWhere != '') {
+            where = where + '~and(' + countryWhere + ')';
+        }
+
+        if(selectedRegion == 'regional') {
+            where = where + '~and((Regional grouping - geo,isnot,null)~or(Regional grouping - income,isnot,null))';
+        }
+
+        where = where + '~and(Analysis status,eq,Publish to website)';
 
         axios.get(api.base_url + '/Policy and Governance Map', {
             headers: {
@@ -138,14 +141,11 @@ function Map() {
             },
             params: {
                 limit: 150,
-                fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference,Policy or governance type',
+                fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference,Policy or governance type,Regional grouping - geo,Regional grouping - income',
                 'nested[Country][fields]': 'Country name,Country code',
                 where: where
             }
         }).then(function(response) {
-
-
-
 
             let queries = [];
 
@@ -164,7 +164,7 @@ function Map() {
                     },
                     params: {
                         limit: 150,
-                        fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference,Policy or governance type',
+                        fields: 'Original title,English title,External URL,Country,Year,Analysis status,Observatory AI policy areas - primary,Observatory AI policy areas - secondary,Featured policy and governance,AI reference,Policy or governance type,Regional grouping - geo,Regional grouping - income',
                         'nested[Country][fields]': 'Country name,Country code',
                         where: where
                     }
@@ -174,47 +174,60 @@ function Map() {
 
             axios.all(queries_get).then(axios.spread((...responses) => {
 
+
                 let policiesData = [];
+                
 
                 for (let count = 0; count < responses.length; count++) {
                     let response = responses[count];
                     policiesData = policiesData.concat(response.data.list);
                 }
 
-                let policiesDataTransformed = policiesData.reduce((r, a) => {
-                    r[a.Country[0]['Country code']] = [...r[a.Country[0]['Country code']] || [], a];
-                    return r;
-                }, {});
+               
+                
+                if(selectedRegion == 'regional') {
+                    let policiesDataTransformedSorted = {};
+                    policiesDataTransformedSorted['regional'] = policiesData;
+                    setFilteredData(policiesDataTransformedSorted);
+                } else {
+                    
 
-                for (let count = 0; count < africanCountries.length; count++) {
-                    let country = africanCountries[count];
-                    if (!policiesDataTransformed[country.iso_code]) {
-                        policiesDataTransformed[country.iso_code] = [];
+                    let policiesDataTransformed = policiesData.reduce((r, a) => {
+                        r[a.Country[0]['Country code']] = [...r[a.Country[0]['Country code']] || [], a];
+                        return r;
+                    }, {});
+
+                    for (let count = 0; count < africanCountries.length; count++) {
+                        let country = africanCountries[count];
+                        if (!policiesDataTransformed[country.iso_code]) {
+                            policiesDataTransformed[country.iso_code] = [];
+                        }
                     }
-                }
 
-                let policiesDataTransformedSorted = {};
-                Object.keys(policiesDataTransformed).sort().forEach(function(key) {
-                    policiesDataTransformedSorted[key] = policiesDataTransformed[key];
+                    let policiesDataTransformedSorted = {};
+                    Object.keys(policiesDataTransformed).sort().forEach(function(key) {
+                        policiesDataTransformedSorted[key] = policiesDataTransformed[key];
 
-                    // order by year
-                    policiesDataTransformedSorted[key].sort(function(a, b) {
-                        var nameA = a.Year[0].Year.toUpperCase();
-                        var nameB = b.Year[0].Year.toUpperCase(); 
-                        if (nameA < nameB) {
-                            return -1;
-                        }
-                        if (nameA > nameB) {
-                        return 1;
-                        }
+                        // order by year
+                        policiesDataTransformedSorted[key].sort(function(a, b) {
+                            var nameA = a.Year[0].Year.toUpperCase();
+                            var nameB = b.Year[0].Year.toUpperCase(); 
+                            if (nameA < nameB) {
+                                return -1;
+                            }
+                            if (nameA > nameB) {
+                            return 1;
+                            }
+                        });
+
                     });
 
 
-                });
 
+                    setFilteredData(policiesDataTransformedSorted);
+                
+                }
 
-
-                setFilteredData(policiesDataTransformedSorted);
                 setLoading(false);
                 setYearsLoading(false);
                 setPolicyAreasLoading(false);
@@ -248,49 +261,47 @@ function Map() {
                 return 1;
                 }
             });
-            
-
 
             setPolicyAreas(response.data.list);
         })
     
     }
 
-    const getRegions = () => {
+    // const getRegions = () => {
 
-        let regions_temp = [];
+    //     let regions_temp = [];
 
-        axios.get(api.base_url + '/Regional grouping - geo', {
-            headers: {
-                'xc-token': process.env.API_KEY
-            },
-            params: {
-                limit: 250,
-                where: '(Country,isnot,null)'
-            }
-        }).then(function(response) {
+    //     axios.get(api.base_url + '/Regional grouping - geo', {
+    //         headers: {
+    //             'xc-token': process.env.API_KEY
+    //         },
+    //         params: {
+    //             limit: 250,
+    //             where: '(Country,isnot,null)'
+    //         }
+    //     }).then(function(response) {
 
-            regions_temp = response.data.list;
+    //         regions_temp = response.data.list;
 
-            axios.get(api.base_url + '/Regional grouping - income', {
-                headers: {
-                    'xc-token': process.env.API_KEY
-                },
-                params: {
-                    limit: 250,
-                    where: '(Country,isnot,null)'
-                }
-            }).then(function(response) {
-                regions_temp = regions_temp.concat(response.data.list);
+    //         axios.get(api.base_url + '/Regional grouping - income', {
+    //             headers: {
+    //                 'xc-token': process.env.API_KEY
+    //             },
+    //             params: {
+    //                 limit: 250,
+    //                 where: '(Country,isnot,null)'
+    //             }
+    //         }).then(function(response) {
+    //             regions_temp = regions_temp.concat(response.data.list);
 
-                setRegions(regions_temp);
+    //             setRegions(regions_temp);
                 
 
-            })
+    //         })
 
-        })
+    //     })
 
-    }
+    // }
 
     useEffect(() => {
 
@@ -338,17 +349,29 @@ function Map() {
         if(country == 'all') {
             if (checked) {
                 setSelectedCountries([]);
+                setSelectedRegion('');
+            }
+        } else if(country == 'regional') {
+            if (checked) {
+                setSelectedRegion('regional');
+                setSelectedCountries(null);
+            } else {
+                setSelectedRegion('');
+                setSelectedCountries([]);
             }
         } else {
-
             if (checked) {
-                setSelectedCountries([...selectedCountries, country]);
+                setSelectedRegion('');
+                if(selectedCountries == null) {
+                    setSelectedCountries([country]);
+                } else {
+                    setSelectedCountries([...selectedCountries, country]);
+                }
             } else {
                 setSelectedCountries(selectedCountries.filter((item) => item !== country));
             }
         }
 
-        setSelectedRegion('');
 
     }
 
@@ -592,15 +615,27 @@ function Map() {
         }, 1000);
     }
 
+    const regionalScale = (value) => {
+
+        console.log(value);
+            
+        return value < 1 ? '#dfdfdf' :
+        value > 0 && value < 6 ? '#dee2e1' :
+        value > 5 && value < 11 ? '#bfd4d3' :
+        value > 10 && value < 21 ? '#80aaa8' : 
+        value > 20 ? '#3c7a77' : '#dfdfdf';
+
+    }
+
     const style = (feature) => {
 
         const scale = (value) => {
             
             return value < 1 ? '#dfdfdf' :
-            value > 0 && value < 11 ? '#dee2e1' :
-            value > 10 && value < 21 ? '#bfd4d3' :
-            value > 20 && value < 41 ? '#80aaa8' : 
-            value > 41 ? '#3c7a77' : '#dfdfdf';
+            value > 0 && value < 6 ? '#dee2e1' :
+            value > 5 && value < 11 ? '#bfd4d3' :
+            value > 10 && value < 21 ? '#80aaa8' : 
+            value > 20 ? '#3c7a77' : '#dfdfdf';
 
         }
 
@@ -635,10 +670,7 @@ function Map() {
                     fillOpacity: 0.6,
                 });
 
-                console.log(layer.feature.id);
-
                 let countryCheckbox = document.querySelector(`[data-iso-code="${layer.feature.id}"]`);
-                console.log(countryCheckbox);
                 countryCheckbox.checked = true;
                 setSelectedCountries([layer.feature.properties.name]);
                 // setShowSection('list');
@@ -686,8 +718,16 @@ function Map() {
                             scrollWheelZoom={false}
                             zoomControl={false}
                         >
+                            
                             <LayerGroup>
                                 <GeoJSON data={allCountries} style={style} onEachFeature={onEachFeature} refresh={refreshMap}/>
+                                <SVGOverlay className="svg-container" attributes={{ stroke: 'white' }} bounds={[
+                                        [0, 2],
+                                        [-6, -4],
+                                    ]}>
+                                    <circle r="48%" cx="50%" cy="50%" fill={selectedRegion == 'regional' ? regionalScale(policies.length) : '#dfdfdf'} stroke="#fff" strokeWidth={0.8} />
+                                    <text x="50%" y="50%" fill="black" stroke="#000" textAnchor="middle" dominantBaseline="middle" className="regional-label">REG</text>
+                                </SVGOverlay>
                             </LayerGroup>
                         </MapContainer>
                 }
@@ -787,11 +827,18 @@ function Map() {
                                                 <Accordion.Body className="px-2">
                                                     <div className="scrollarea" style={{ height: '250px' }}>
                                                         <Row className="mb-2 p-1 list-item-bg">
-                                                            <Col><label>All Countries</label></Col>
+                                                            <Col><label>Regional Policies</label></Col>
                                                             <Col xs="auto">
-                                                                <input className="filter-form-control" type="checkbox" value="all" onChange={selectCountry} checked={selectedCountries.length == 0} />
+                                                                <input className="filter-form-control" type="checkbox" value="regional" onChange={selectCountry} checked={selectedRegion == 'regional'} />
                                                             </Col>
                                                         </Row>
+                                                        <Row className="mb-2 p-1 list-item-bg">
+                                                            <Col><label>All Countries</label></Col>
+                                                            <Col xs="auto">
+                                                                <input className="filter-form-control" type="checkbox" value="all" onChange={selectCountry} checked={selectedCountries != null && selectedCountries.length == 0} />
+                                                            </Col>
+                                                        </Row>
+                                                        
                                                         {
                                                             allCountries.features.map((country, index) => {
                                                                 if(africanCountries.map(cntry => cntry.iso_code).includes(country.id)) {
@@ -817,40 +864,11 @@ function Map() {
                                                                                 </label>
                                                                             </Col>
                                                                             <Col xs="auto">
-                                                                                <input className="filter-form-control" data-iso-code={country.id} type="checkbox" value={country.properties.name} onChange={selectCountry} checked={selectedCountries.includes(country.properties.name)} />
+                                                                                <input className="filter-form-control" data-iso-code={country.id} type="checkbox" value={country.properties.name} onChange={selectCountry} checked={selectedCountries != null && selectedCountries.includes(country.properties.name)} />
                                                                             </Col>
                                                                         </Row>
                                                                     )
                                                                 }
-                                                            })
-                                                        }
-                                                    </div>
-                                                </Accordion.Body>
-                                            </Accordion.Item>
-                                            <Accordion.Item eventKey="2">
-                                                <Accordion.Header>REGIONS</Accordion.Header>
-                                                <Accordion.Body className="px-2">
-                                                    <div className="scrollarea" style={{ height: '250px' }}>
-                                                        <Row className="mb-2 p-1 list-item-bg">
-                                                            <Col>
-                                                                <label>None</label>
-                                                            </Col>
-                                                            <Col xs="auto">
-                                                                <input className="filter-form-control" type="radio" value='' onChange={selectRegion} checked={selectedRegion == ''} />
-                                                            </Col>
-                                                        </Row>
-                                                        {
-                                                            regions.map((region, index) => {
-                                                                return (
-                                                                    <Row key={index} className="mb-2 p-1 list-item-bg">
-                                                                        <Col>
-                                                                            <label>{region['Region name']}</label>
-                                                                        </Col>
-                                                                        <Col xs="auto">
-                                                                            <input className="filter-form-control" type="radio" value={region['Region name']} onChange={selectRegion} checked={selectedRegion == region['Region name']} />
-                                                                        </Col>
-                                                                    </Row>
-                                                                )
                                                             })
                                                         }
                                                     </div>
@@ -1076,7 +1094,7 @@ function Map() {
                                                             <Col>Countries</Col>
                                                             <Col xs="auto">
                                                                 {
-                                                                    selectedCountries.length > 0 ?
+                                                                    selectedCountries != null && selectedCountries.length > 0 ?
                                                                     <OverlayTrigger placement="left" overlay={
                                                                         <Popover id="popover-basic">
                                                                             <Popover.Header as="h3">Countries</Popover.Header>
