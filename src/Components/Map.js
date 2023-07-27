@@ -212,10 +212,10 @@ function Map() {
                         policiesDataTransformedSorted[key].sort(function(a, b) {
                             var nameA = a.Year[0].Year.toUpperCase();
                             var nameB = b.Year[0].Year.toUpperCase(); 
-                            if (nameA < nameB) {
+                            if (nameA > nameB) {
                                 return -1;
                             }
-                            if (nameA > nameB) {
+                            if (nameA < nameB) {
                             return 1;
                             }
                         });
@@ -267,42 +267,7 @@ function Map() {
     
     }
 
-    // const getRegions = () => {
-
-    //     let regions_temp = [];
-
-    //     axios.get(api.base_url + '/Regional grouping - geo', {
-    //         headers: {
-    //             'xc-token': process.env.API_KEY
-    //         },
-    //         params: {
-    //             limit: 250,
-    //             where: '(Country,isnot,null)'
-    //         }
-    //     }).then(function(response) {
-
-    //         regions_temp = response.data.list;
-
-    //         axios.get(api.base_url + '/Regional grouping - income', {
-    //             headers: {
-    //                 'xc-token': process.env.API_KEY
-    //             },
-    //             params: {
-    //                 limit: 250,
-    //                 where: '(Country,isnot,null)'
-    //             }
-    //         }).then(function(response) {
-    //             regions_temp = regions_temp.concat(response.data.list);
-
-    //             setRegions(regions_temp);
-                
-
-    //         })
-
-    //     })
-
-    // }
-
+    
     useEffect(() => {
 
         setPolicyAreasLoading(true);
