@@ -66,7 +66,6 @@ function Map() {
 
         getPolicies();
         getPolicyAreas();
-        // getRegions();
         
         
     }, []);
@@ -187,7 +186,21 @@ function Map() {
                 
                 if(selectedRegion == 'regional') {
                     let policiesDataTransformedSorted = {};
-                    policiesDataTransformedSorted['regional'] = policiesData;
+
+                    let policiesDataSorted = policiesData.sort(function(a, b) {
+                        var nameA = a.Year[0].Year.toUpperCase();
+                        var nameB = b.Year[0].Year.toUpperCase(); 
+                        if (nameA > nameB) {
+                            return -1;
+                        }
+                        if (nameA < nameB) {
+                        return 1;
+                        }
+                    });
+
+
+
+                    policiesDataTransformedSorted['regional'] = policiesDataSorted;
                     setFilteredData(policiesDataTransformedSorted);
                 } else {
                     
