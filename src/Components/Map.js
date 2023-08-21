@@ -6,7 +6,7 @@ import axios from 'axios';
 import { Icon } from '@mdi/react';
 import { mdiFilterOutline, mdiCogOutline, mdiInformationSlabCircle, mdiOpenInNew, mdiHelpCircle } from '@mdi/js';
 
-import { Card, Container, Row, Col, Accordion, Button, Form, Popover, OverlayTrigger, Placeholder } from 'react-bootstrap';
+import { Card, Container, Row, Col, Accordion, Button, Form, Popover, OverlayTrigger, Placeholder, Modal } from 'react-bootstrap';
 import Spinner from 'react-bootstrap/Spinner';
 
 import { Animate, AnimateKeyframes, AnimateGroup } from "react-simple-animate";
@@ -60,12 +60,17 @@ function Map() {
     const [showSection, setShowSection] = useState('map');
     const [regions, setRegions] = useState([]);
     const [selectedRegion, setSelectedRegion] = useState('');
-    const [aiDirect, setAiDirect] = useState(false);
+    const [aiDirect, setAiDirect] = useState(true);
+    const [showMobileWarning, setShowMobileWarning] = useState(false);
 
     useEffect(() => {
 
         getPolicies();
         getPolicyAreas();
+
+        if (window.innerWidth < 768) {
+            setShowMobileWarning(true);
+        }
         
         
     }, []);
@@ -734,6 +739,7 @@ function Map() {
                                         <Icon path={mdiFilterOutline} size={1} /> <span>FILTERS</span>
                                     </Card.Header>
                                     <Card.Body className="p-0">
+                                        
                                         <Accordion defaultActiveKey="0" flush>
                                             <Accordion.Item eventKey="0">
                                                 <Accordion.Header>POLICY AREAS</Accordion.Header>
@@ -788,15 +794,7 @@ function Map() {
                                                     </div>
 
 
-                                                    <Form.Check
-                                                        size="lg"
-                                                        className="my-2"
-                                                        type="switch"
-                                                        id="ai-direct"
-                                                        label="Direct reference to AI"
-                                                        checked={aiDirect}
-                                                        onChange={toggleAiDirect}
-                                                    />
+                                                    
                                                 </Accordion.Body>
                                             </Accordion.Item>
                                             
@@ -888,7 +886,22 @@ function Map() {
                                                     </Row>
                                                 </Accordion.Body>
                                             </Accordion.Item>
-                                        </Accordion>    
+                                        </Accordion>
+                                        <Row className="px-2 py-2 border-top">
+                                            <Col>
+                                                <strong>
+                                                <Form.Check
+                                                    size="lg"
+                                                    className="my-2"
+                                                    type="switch"
+                                                    id="ai-direct"
+                                                    label="Direct reference to AI"
+                                                    checked={aiDirect}
+                                                    onChange={toggleAiDirect}
+                                                />
+                                                </strong>
+                                            </Col>
+                                        </Row>    
 
                                        
                                 
@@ -1137,6 +1150,19 @@ function Map() {
                
                
             </AnimateGroup>
+            <Modal show={showMobileWarning}>
+                <Modal.Header closeButton handleClose={() => setShowMobileWarning(false)}>
+                    <Modal.Title className="text-primary">Mobile Use</Modal.Title>
+                </Modal.Header>
+
+                <Modal.Body>
+                    <p className="fs-6">This policy map is optimised for desktop and may not work as intended on a smaller screen.</p>
+                </Modal.Body>
+
+                <Modal.Footer>
+                    <Button variant="primary" size="sm" onClick={() => setShowMobileWarning(false)}>I understand</Button>
+                </Modal.Footer>
+            </Modal>
         </div>
     );
 }
