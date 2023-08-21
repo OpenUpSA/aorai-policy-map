@@ -1151,7 +1151,7 @@ function Map() {
                
             </AnimateGroup>
             <Modal show={showMobileWarning}>
-                <Modal.Header closeButton handleClose={() => setShowMobileWarning(false)}>
+                <Modal.Header>
                     <Modal.Title className="text-primary">Mobile Use</Modal.Title>
                 </Modal.Header>
 
