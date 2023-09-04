@@ -79,6 +79,7 @@ function Map() {
 
         let countryWhere = '';
         let policyAreaWhere = '';
+        let selectedCountriesFixed;
 
         let yearsArray = [];
         for (let year = selectedYears[0]; year <= selectedYears[1]; year++) {
@@ -124,7 +125,15 @@ function Map() {
         }
 
         if(selectedCountries != null && selectedCountries.length) {
-            countryWhere = '(Country,in,' + selectedCountries.join(',') + ')';
+
+            selectedCountriesFixed = selectedCountries;
+
+            selectedCountriesFixed = selectedCountriesFixed.map(country => country == 'Congo, Democratic Republic' ? 'Congo DR' : country);
+            selectedCountriesFixed = selectedCountriesFixed.map(country => country == 'Congo, Republic' ? 'Congo R' : country);
+            selectedCountriesFixed = selectedCountriesFixed.map(country => country == 'Ivory Coast' ? 'Cote d\'Ivoire' : country);
+
+            countryWhere = '(Country,in,' + selectedCountriesFixed.join(',') + ')';
+
         } else if(selectedCountries != null) {
             countryWhere = '(Country,isnot,null)';
         }
@@ -328,6 +337,7 @@ function Map() {
 
         let country = e.target.value;
         let checked = e.target.checked;
+
 
         if(country == 'all') {
             if (checked) {
